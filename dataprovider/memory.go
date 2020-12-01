@@ -266,10 +266,6 @@ func (p MemoryProvider) dumpUsers() ([]User, error) {
 	for _, username := range p.dbHandle.usernames {
 		u := p.dbHandle.users[username]
 		user := u.getACopy()
-		err = addCredentialsToUser(&user)
-		if err != nil {
-			return users, err
-		}
 		users = append(users, user)
 	}
 	return users, err

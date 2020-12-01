@@ -79,20 +79,6 @@ func newActionNotification(
 	var bucket, endpoint string
 	status := 1
 
-	if user.FsConfig.Provider == dataprovider.S3FilesystemProvider {
-		bucket = user.FsConfig.S3Config.Bucket
-		endpoint = user.FsConfig.S3Config.Endpoint
-	} else if user.FsConfig.Provider == dataprovider.GCSFilesystemProvider {
-		bucket = user.FsConfig.GCSConfig.Bucket
-	} else if user.FsConfig.Provider == dataprovider.AzureBlobFilesystemProvider {
-		bucket = user.FsConfig.AzBlobConfig.Container
-		if user.FsConfig.AzBlobConfig.SASURL != "" {
-			endpoint = user.FsConfig.AzBlobConfig.SASURL
-		} else {
-			endpoint = user.FsConfig.AzBlobConfig.Endpoint
-		}
-	}
-
 	if err == ErrQuotaExceeded {
 		status = 2
 	} else if err != nil {

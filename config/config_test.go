@@ -13,7 +13,6 @@ import (
 	"github.com/drakkan/sftpgo/common"
 	"github.com/drakkan/sftpgo/config"
 	"github.com/drakkan/sftpgo/dataprovider"
-	"github.com/drakkan/sftpgo/ftpd"
 	"github.com/drakkan/sftpgo/httpclient"
 	"github.com/drakkan/sftpgo/httpd"
 	"github.com/drakkan/sftpgo/sftpd"
@@ -66,20 +65,6 @@ func TestEmptyBanner(t *testing.T) {
 	assert.NoError(t, err)
 	sftpdConf = config.GetSFTPDConfig()
 	assert.NotEmpty(t, strings.TrimSpace(sftpdConf.Banner))
-	err = os.Remove(configFilePath)
-	assert.NoError(t, err)
-
-	ftpdConf := config.GetFTPDConfig()
-	ftpdConf.Banner = " "
-	c1 := make(map[string]ftpd.Configuration)
-	c1["ftpd"] = ftpdConf
-	jsonConf, _ = json.Marshal(c1)
-	err = ioutil.WriteFile(configFilePath, jsonConf, os.ModePerm)
-	assert.NoError(t, err)
-	err = config.LoadConfig(configDir, tempConfigName)
-	assert.NoError(t, err)
-	ftpdConf = config.GetFTPDConfig()
-	assert.NotEmpty(t, strings.TrimSpace(ftpdConf.Banner))
 	err = os.Remove(configFilePath)
 	assert.NoError(t, err)
 }
@@ -267,18 +252,6 @@ func TestSetGetConfig(t *testing.T) {
 	commonConf.IdleTimeout = 10
 	config.SetCommonConfig(commonConf)
 	assert.Equal(t, commonConf.IdleTimeout, config.GetCommonConfig().IdleTimeout)
-	ftpdConf := config.GetFTPDConfig()
-	ftpdConf.CertificateFile = "cert"
-	ftpdConf.CertificateKeyFile = "key"
-	config.SetFTPDConfig(ftpdConf)
-	assert.Equal(t, ftpdConf.CertificateFile, config.GetFTPDConfig().CertificateFile)
-	assert.Equal(t, ftpdConf.CertificateKeyFile, config.GetFTPDConfig().CertificateKeyFile)
-	webDavConf := config.GetWebDAVDConfig()
-	webDavConf.CertificateFile = "dav_cert"
-	webDavConf.CertificateKeyFile = "dav_key"
-	config.SetWebDAVDConfig(webDavConf)
-	assert.Equal(t, webDavConf.CertificateFile, config.GetWebDAVDConfig().CertificateFile)
-	assert.Equal(t, webDavConf.CertificateKeyFile, config.GetWebDAVDConfig().CertificateKeyFile)
 	kmsConf := config.GetKMSConfig()
 	kmsConf.Secrets.MasterKeyPath = "apath"
 	kmsConf.Secrets.URL = "aurl"
@@ -302,13 +275,6 @@ func TestServiceToStart(t *testing.T) {
 	assert.True(t, config.HasServicesToStart())
 	ftpdConf.BindPort = 0
 	config.SetFTPDConfig(ftpdConf)
-	webdavdConf := config.GetWebDAVDConfig()
-	webdavdConf.BindPort = 9000
-	config.SetWebDAVDConfig(webdavdConf)
-	assert.True(t, config.HasServicesToStart())
-	webdavdConf.BindPort = 0
-	config.SetWebDAVDConfig(webdavdConf)
-	assert.False(t, config.HasServicesToStart())
 	sftpdConf.BindPort = 2022
 	config.SetSFTPDConfig(sftpdConf)
 	assert.True(t, config.HasServicesToStart())

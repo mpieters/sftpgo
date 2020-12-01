@@ -42,7 +42,6 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/drakkan/sftpgo/httpclient"
-	"github.com/drakkan/sftpgo/kms"
 	"github.com/drakkan/sftpgo/logger"
 	"github.com/drakkan/sftpgo/metrics"
 	"github.com/drakkan/sftpgo/utils"
@@ -1102,91 +1101,8 @@ func validateFilters(user *User) error {
 	return validateFileFilters(user)
 }
 
-func saveGCSCredentials(user *User) error {
-	if user.FsConfig.Provider != GCSFilesystemProvider {
-		return nil
-	}
-	if user.FsConfig.GCSConfig.Credentials.GetPayload() == "" {
-		return nil
-	}
-	if config.PreferDatabaseCredentials {
-		if user.FsConfig.GCSConfig.Credentials.IsPlain() {
-			user.FsConfig.GCSConfig.Credentials.SetAdditionalData(user.Username)
-			err := user.FsConfig.GCSConfig.Credentials.Encrypt()
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	if user.FsConfig.GCSConfig.Credentials.IsPlain() {
-		user.FsConfig.GCSConfig.Credentials.SetAdditionalData(user.Username)
-		err := user.FsConfig.GCSConfig.Credentials.Encrypt()
-		if err != nil {
-			return &ValidationError{err: fmt.Sprintf("could not encrypt GCS credentials: %v", err)}
-		}
-	}
-	creds, err := json.Marshal(user.FsConfig.GCSConfig.Credentials)
-	if err != nil {
-		return &ValidationError{err: fmt.Sprintf("could not marshal GCS credentials: %v", err)}
-	}
-	credentialsFilePath := user.getGCSCredentialsFilePath()
-	err = os.MkdirAll(filepath.Dir(credentialsFilePath), 0700)
-	if err != nil {
-		return &ValidationError{err: fmt.Sprintf("could not create GCS credentials dir: %v", err)}
-	}
-	err = ioutil.WriteFile(credentialsFilePath, creds, 0600)
-	if err != nil {
-		return &ValidationError{err: fmt.Sprintf("could not save GCS credentials: %v", err)}
-	}
-	user.FsConfig.GCSConfig.Credentials = kms.NewEmptySecret()
-	return nil
-}
-
 func validateFilesystemConfig(user *User) error {
-	if user.FsConfig.Provider == S3FilesystemProvider {
-		err := vfs.ValidateS3FsConfig(&user.FsConfig.S3Config)
-		if err != nil {
-			return &ValidationError{err: fmt.Sprintf("could not validate s3config: %v", err)}
-		}
-		if user.FsConfig.S3Config.AccessSecret.IsPlain() {
-			user.FsConfig.S3Config.AccessSecret.SetAdditionalData(user.Username)
-			err = user.FsConfig.S3Config.AccessSecret.Encrypt()
-			if err != nil {
-				return &ValidationError{err: fmt.Sprintf("could not encrypt s3 access secret: %v", err)}
-			}
-		}
-		user.FsConfig.GCSConfig = vfs.GCSFsConfig{}
-		user.FsConfig.AzBlobConfig = vfs.AzBlobFsConfig{}
-		return nil
-	} else if user.FsConfig.Provider == GCSFilesystemProvider {
-		err := vfs.ValidateGCSFsConfig(&user.FsConfig.GCSConfig, user.getGCSCredentialsFilePath())
-		if err != nil {
-			return &ValidationError{err: fmt.Sprintf("could not validate GCS config: %v", err)}
-		}
-		user.FsConfig.S3Config = vfs.S3FsConfig{}
-		user.FsConfig.AzBlobConfig = vfs.AzBlobFsConfig{}
-		return nil
-	} else if user.FsConfig.Provider == AzureBlobFilesystemProvider {
-		err := vfs.ValidateAzBlobFsConfig(&user.FsConfig.AzBlobConfig)
-		if err != nil {
-			return &ValidationError{err: fmt.Sprintf("could not validate Azure Blob config: %v", err)}
-		}
-		if user.FsConfig.AzBlobConfig.AccountKey.IsPlain() {
-			user.FsConfig.AzBlobConfig.AccountKey.SetAdditionalData(user.Username)
-			err = user.FsConfig.AzBlobConfig.AccountKey.Encrypt()
-			if err != nil {
-				return &ValidationError{err: fmt.Sprintf("could not encrypt Azure blob account key: %v", err)}
-			}
-		}
-		user.FsConfig.S3Config = vfs.S3FsConfig{}
-		user.FsConfig.GCSConfig = vfs.GCSFsConfig{}
-		return nil
-	}
 	user.FsConfig.Provider = LocalFilesystemProvider
-	user.FsConfig.S3Config = vfs.S3FsConfig{}
-	user.FsConfig.GCSConfig = vfs.GCSFsConfig{}
-	user.FsConfig.AzBlobConfig = vfs.AzBlobFsConfig{}
 	return nil
 }
 
@@ -1227,7 +1143,6 @@ func validateFolder(folder *vfs.BaseVirtualFolder) error {
 }
 
 func validateUser(user *User) error {
-	user.SetEmptySecretsIfNil()
 	buildUserHomeDir(user)
 	if err := validateBaseParams(user); err != nil {
 		return err
@@ -1251,9 +1166,6 @@ func validateUser(user *User) error {
 		return err
 	}
 	if err := validateFilters(user); err != nil {
-		return err
-	}
-	if err := saveGCSCredentials(user); err != nil {
 		return err
 	}
 	return nil
@@ -1411,26 +1323,6 @@ func comparePbkdf2PasswordAndHash(password, hashedPassword string) (bool, error)
 	}
 	df := pbkdf2.Key([]byte(password), salt, iterations, len(expected), hashFunc)
 	return subtle.ConstantTimeCompare(df, expected) == 1, nil
-}
-
-func addCredentialsToUser(user *User) error {
-	if user.FsConfig.Provider != GCSFilesystemProvider {
-		return nil
-	}
-	if user.FsConfig.GCSConfig.AutomaticCredentials > 0 {
-		return nil
-	}
-
-	// Don't read from file if credentials have already been set
-	if user.FsConfig.GCSConfig.Credentials.IsValid() {
-		return nil
-	}
-
-	cred, err := ioutil.ReadFile(user.getGCSCredentialsFilePath())
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(cred, &user.FsConfig.GCSConfig.Credentials)
 }
 
 func getSSLMode() string {

@@ -109,13 +109,6 @@ func (s *Service) Start() error {
 
 	httpConfig := config.GetHTTPConfig()
 	httpConfig.Initialize(s.ConfigDir)
-	kmsConfig := config.GetKMSConfig()
-	err = kmsConfig.Initialize()
-	if err != nil {
-		logger.Error(logSender, "", "unable to initialize KMS: %v", err)
-		logger.ErrorToConsole("unable to initialize KMS: %v", err)
-		os.Exit(1)
-	}
 
 	s.startServices()
 
@@ -124,9 +117,7 @@ func (s *Service) Start() error {
 
 func (s *Service) startServices() {
 	sftpdConf := config.GetSFTPDConfig()
-	ftpdConf := config.GetFTPDConfig()
 	httpdConf := config.GetHTTPDConfig()
-	webDavDConf := config.GetWebDAVDConfig()
 
 	if sftpdConf.BindPort > 0 {
 		go func() {
@@ -156,30 +147,6 @@ func (s *Service) startServices() {
 		if s.PortableMode != 1 {
 			logger.DebugToConsole("HTTP server not started, disabled in config file")
 		}
-	}
-	if ftpdConf.BindPort > 0 {
-		go func() {
-			if err := ftpdConf.Initialize(s.ConfigDir); err != nil {
-				logger.Error(logSender, "", "could not start FTP server: %v", err)
-				logger.ErrorToConsole("could not start FTP server: %v", err)
-				s.Error = err
-			}
-			s.Shutdown <- true
-		}()
-	} else {
-		logger.Debug(logSender, "", "FTP server not started, disabled in config file")
-	}
-	if webDavDConf.BindPort > 0 {
-		go func() {
-			if err := webDavDConf.Initialize(s.ConfigDir); err != nil {
-				logger.Error(logSender, "", "could not start WebDAV server: %v", err)
-				logger.ErrorToConsole("could not start WebDAV server: %v", err)
-				s.Error = err
-			}
-			s.Shutdown <- true
-		}()
-	} else {
-		logger.Debug(logSender, "", "WebDAV server not started, disabled in config file")
 	}
 }
 

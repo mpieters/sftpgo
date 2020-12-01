@@ -9,15 +9,12 @@ import (
 
 	"github.com/drakkan/sftpgo/common"
 	"github.com/drakkan/sftpgo/dataprovider"
-	"github.com/drakkan/sftpgo/ftpd"
 	"github.com/drakkan/sftpgo/httpclient"
 	"github.com/drakkan/sftpgo/httpd"
-	"github.com/drakkan/sftpgo/kms"
 	"github.com/drakkan/sftpgo/logger"
 	"github.com/drakkan/sftpgo/sftpd"
 	"github.com/drakkan/sftpgo/utils"
 	"github.com/drakkan/sftpgo/version"
-	"github.com/drakkan/sftpgo/webdavd"
 )
 
 const (
@@ -37,14 +34,11 @@ var (
 )
 
 type globalConfig struct {
-	Common       common.Configuration  `json:"common" mapstructure:"common"`
-	SFTPD        sftpd.Configuration   `json:"sftpd" mapstructure:"sftpd"`
-	FTPD         ftpd.Configuration    `json:"ftpd" mapstructure:"ftpd"`
-	WebDAVD      webdavd.Configuration `json:"webdavd" mapstructure:"webdavd"`
-	ProviderConf dataprovider.Config   `json:"data_provider" mapstructure:"data_provider"`
-	HTTPDConfig  httpd.Conf            `json:"httpd" mapstructure:"httpd"`
-	HTTPConfig   httpclient.Config     `json:"http" mapstructure:"http"`
-	KMSConfig    kms.Configuration     `json:"kms" mapstructure:"kms"`
+	Common       common.Configuration `json:"common" mapstructure:"common"`
+	SFTPD        sftpd.Configuration  `json:"sftpd" mapstructure:"sftpd"`
+	ProviderConf dataprovider.Config  `json:"data_provider" mapstructure:"data_provider"`
+	HTTPDConfig  httpd.Conf           `json:"httpd" mapstructure:"httpd"`
+	HTTPConfig   httpclient.Config    `json:"http" mapstructure:"http"`
 }
 
 func init() {
@@ -75,45 +69,6 @@ func init() {
 			EnabledSSHCommands:      sftpd.GetDefaultSSHCommands(),
 			KeyboardInteractiveHook: "",
 			PasswordAuthentication:  true,
-		},
-		FTPD: ftpd.Configuration{
-			BindPort:                 0,
-			BindAddress:              "",
-			Banner:                   defaultFTPDBanner,
-			BannerFile:               "",
-			ActiveTransfersPortNon20: false,
-			ForcePassiveIP:           "",
-			PassivePortRange: ftpd.PortRange{
-				Start: 50000,
-				End:   50100,
-			},
-			CertificateFile:    "",
-			CertificateKeyFile: "",
-		},
-		WebDAVD: webdavd.Configuration{
-			BindPort:           0,
-			BindAddress:        "",
-			CertificateFile:    "",
-			CertificateKeyFile: "",
-			Cors: webdavd.Cors{
-				Enabled:          false,
-				AllowedOrigins:   []string{},
-				AllowedMethods:   []string{},
-				AllowedHeaders:   []string{},
-				ExposedHeaders:   []string{},
-				AllowCredentials: false,
-				MaxAge:           0,
-			},
-			Cache: webdavd.Cache{
-				Users: webdavd.UsersCacheConfig{
-					ExpirationTime: 0,
-					MaxSize:        50,
-				},
-				MimeTypes: webdavd.MimeCacheConfig{
-					Enabled: true,
-					MaxSize: 1000,
-				},
-			},
 		},
 		ProviderConf: dataprovider.Config{
 			Driver:           "sqlite",
@@ -166,12 +121,6 @@ func init() {
 			CACertificates: nil,
 			SkipTLSVerify:  false,
 		},
-		KMSConfig: kms.Configuration{
-			Secrets: kms.Secrets{
-				URL:           "",
-				MasterKeyPath: "",
-			},
-		},
 	}
 
 	viper.SetEnvPrefix(configEnvPrefix)
@@ -203,26 +152,6 @@ func SetSFTPDConfig(config sftpd.Configuration) {
 	globalConf.SFTPD = config
 }
 
-// GetFTPDConfig returns the configuration for the FTP server
-func GetFTPDConfig() ftpd.Configuration {
-	return globalConf.FTPD
-}
-
-// SetFTPDConfig sets the configuration for the FTP server
-func SetFTPDConfig(config ftpd.Configuration) {
-	globalConf.FTPD = config
-}
-
-// GetWebDAVDConfig returns the configuration for the WebDAV server
-func GetWebDAVDConfig() webdavd.Configuration {
-	return globalConf.WebDAVD
-}
-
-// SetWebDAVDConfig sets the configuration for the WebDAV server
-func SetWebDAVDConfig(config webdavd.Configuration) {
-	globalConf.WebDAVD = config
-}
-
 // GetHTTPDConfig returns the configuration for the HTTP server
 func GetHTTPDConfig() httpd.Conf {
 	return globalConf.HTTPDConfig
@@ -248,26 +177,10 @@ func GetHTTPConfig() httpclient.Config {
 	return globalConf.HTTPConfig
 }
 
-// GetKMSConfig returns the KMS configuration
-func GetKMSConfig() kms.Configuration {
-	return globalConf.KMSConfig
-}
-
-// SetKMSConfig sets the kms configuration
-func SetKMSConfig(config kms.Configuration) {
-	globalConf.KMSConfig = config
-}
-
 // HasServicesToStart returns true if the config defines at least a service to start.
 // Supported services are SFTP, FTP and WebDAV
 func HasServicesToStart() bool {
 	if globalConf.SFTPD.BindPort > 0 {
-		return true
-	}
-	if globalConf.FTPD.BindPort > 0 {
-		return true
-	}
-	if globalConf.WebDAVD.BindPort > 0 {
 		return true
 	}
 	return false
@@ -304,9 +217,6 @@ func LoadConfig(configDir, configName string) error {
 	checkCommonParamsCompatibility()
 	if strings.TrimSpace(globalConf.SFTPD.Banner) == "" {
 		globalConf.SFTPD.Banner = defaultSFTPDBanner
-	}
-	if strings.TrimSpace(globalConf.FTPD.Banner) == "" {
-		globalConf.FTPD.Banner = defaultFTPDBanner
 	}
 	if len(globalConf.ProviderConf.UsersBaseDir) > 0 && !utils.IsFileInputValid(globalConf.ProviderConf.UsersBaseDir) {
 		err = fmt.Errorf("invalid users base dir %#v will be ignored", globalConf.ProviderConf.UsersBaseDir)
@@ -409,32 +319,6 @@ func setViperDefaults() {
 	viper.SetDefault("sftpd.enabled_ssh_commands", globalConf.SFTPD.EnabledSSHCommands)
 	viper.SetDefault("sftpd.keyboard_interactive_auth_hook", globalConf.SFTPD.KeyboardInteractiveHook)
 	viper.SetDefault("sftpd.password_authentication", globalConf.SFTPD.PasswordAuthentication)
-	viper.SetDefault("ftpd.bind_port", globalConf.FTPD.BindPort)
-	viper.SetDefault("ftpd.bind_address", globalConf.FTPD.BindAddress)
-	viper.SetDefault("ftpd.banner", globalConf.FTPD.Banner)
-	viper.SetDefault("ftpd.banner_file", globalConf.FTPD.BannerFile)
-	viper.SetDefault("ftpd.active_transfers_port_non_20", globalConf.FTPD.ActiveTransfersPortNon20)
-	viper.SetDefault("ftpd.force_passive_ip", globalConf.FTPD.ForcePassiveIP)
-	viper.SetDefault("ftpd.passive_port_range.start", globalConf.FTPD.PassivePortRange.Start)
-	viper.SetDefault("ftpd.passive_port_range.end", globalConf.FTPD.PassivePortRange.End)
-	viper.SetDefault("ftpd.certificate_file", globalConf.FTPD.CertificateFile)
-	viper.SetDefault("ftpd.certificate_key_file", globalConf.FTPD.CertificateKeyFile)
-	viper.SetDefault("ftpd.tls_mode", globalConf.FTPD.TLSMode)
-	viper.SetDefault("webdavd.bind_port", globalConf.WebDAVD.BindPort)
-	viper.SetDefault("webdavd.bind_address", globalConf.WebDAVD.BindAddress)
-	viper.SetDefault("webdavd.certificate_file", globalConf.WebDAVD.CertificateFile)
-	viper.SetDefault("webdavd.certificate_key_file", globalConf.WebDAVD.CertificateKeyFile)
-	viper.SetDefault("webdavd.cors.enabled", globalConf.WebDAVD.Cors.Enabled)
-	viper.SetDefault("webdavd.cors.allowed_origins", globalConf.WebDAVD.Cors.AllowedOrigins)
-	viper.SetDefault("webdavd.cors.allowed_methods", globalConf.WebDAVD.Cors.AllowedMethods)
-	viper.SetDefault("webdavd.cors.allowed_headers", globalConf.WebDAVD.Cors.AllowedHeaders)
-	viper.SetDefault("webdavd.cors.exposed_headers", globalConf.WebDAVD.Cors.ExposedHeaders)
-	viper.SetDefault("webdavd.cors.allow_credentials", globalConf.WebDAVD.Cors.AllowCredentials)
-	viper.SetDefault("webdavd.cors.max_age", globalConf.WebDAVD.Cors.MaxAge)
-	viper.SetDefault("webdavd.cache.users.expiration_time", globalConf.WebDAVD.Cache.Users.ExpirationTime)
-	viper.SetDefault("webdavd.cache.users.max_size", globalConf.WebDAVD.Cache.Users.MaxSize)
-	viper.SetDefault("webdavd.cache.mime_types.enabled", globalConf.WebDAVD.Cache.MimeTypes.Enabled)
-	viper.SetDefault("webdavd.cache.mime_types.max_size", globalConf.WebDAVD.Cache.MimeTypes.MaxSize)
 	viper.SetDefault("data_provider.driver", globalConf.ProviderConf.Driver)
 	viper.SetDefault("data_provider.name", globalConf.ProviderConf.Name)
 	viper.SetDefault("data_provider.host", globalConf.ProviderConf.Host)
@@ -474,6 +358,4 @@ func setViperDefaults() {
 	viper.SetDefault("http.timeout", globalConf.HTTPConfig.Timeout)
 	viper.SetDefault("http.ca_certificates", globalConf.HTTPConfig.CACertificates)
 	viper.SetDefault("http.skip_tls_verify", globalConf.HTTPConfig.SkipTLSVerify)
-	viper.SetDefault("kms.secrets.url", globalConf.KMSConfig.Secrets.URL)
-	viper.SetDefault("kms.secrets.master_key_path", globalConf.KMSConfig.Secrets.MasterKeyPath)
 }

@@ -321,10 +321,6 @@ func sqlCommonDumpUsers(dbHandle sqlQuerier) ([]User, error) {
 		if err != nil {
 			return users, err
 		}
-		err = addCredentialsToUser(&u)
-		if err != nil {
-			return users, err
-		}
 		users = append(users, u)
 	}
 	return getUsersWithVirtualFolders(users, dbHandle)
@@ -446,7 +442,6 @@ func getUserFromDbRow(row *sql.Row, rows *sql.Rows) (User, error) {
 	if additionalInfo.Valid {
 		user.AdditionalInfo = additionalInfo.String
 	}
-	user.SetEmptySecretsIfNil()
 	return user, err
 }
 
@@ -1029,10 +1024,6 @@ func sqlCommonUpdateV4CompatUser(dbHandle *sql.DB, user compatUserV4) error {
 
 func sqlCommonUpdateV4User(dbHandle *sql.DB, user User) error {
 	err := validateFilesystemConfig(&user)
-	if err != nil {
-		return err
-	}
-	err = saveGCSCredentials(&user)
 	if err != nil {
 		return err
 	}

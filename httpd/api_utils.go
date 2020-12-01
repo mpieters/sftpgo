@@ -21,7 +21,6 @@ import (
 	"github.com/drakkan/sftpgo/common"
 	"github.com/drakkan/sftpgo/dataprovider"
 	"github.com/drakkan/sftpgo/httpclient"
-	"github.com/drakkan/sftpgo/kms"
 	"github.com/drakkan/sftpgo/utils"
 	"github.com/drakkan/sftpgo/version"
 	"github.com/drakkan/sftpgo/vfs"
@@ -582,9 +581,6 @@ func checkUser(expected *dataprovider.User, actual *dataprovider.User) error {
 	if err := compareUserFilters(expected, actual); err != nil {
 		return err
 	}
-	if err := compareUserFsConfig(expected, actual); err != nil {
-		return err
-	}
 	if err := compareUserVirtualFolders(expected, actual); err != nil {
 		return err
 	}
@@ -606,147 +602,6 @@ func compareUserVirtualFolders(expected *dataprovider.User, actual *dataprovider
 		}
 		if !found {
 			return errors.New("Virtual folders mismatch")
-		}
-	}
-	return nil
-}
-
-func compareUserFsConfig(expected *dataprovider.User, actual *dataprovider.User) error {
-	if expected.FsConfig.Provider != actual.FsConfig.Provider {
-		return errors.New("Fs provider mismatch")
-	}
-	if err := compareS3Config(expected, actual); err != nil {
-		return err
-	}
-	if err := compareGCSConfig(expected, actual); err != nil {
-		return err
-	}
-	if err := compareAzBlobConfig(expected, actual); err != nil {
-		return err
-	}
-	return nil
-}
-
-func compareS3Config(expected *dataprovider.User, actual *dataprovider.User) error {
-	if expected.FsConfig.S3Config.Bucket != actual.FsConfig.S3Config.Bucket {
-		return errors.New("S3 bucket mismatch")
-	}
-	if expected.FsConfig.S3Config.Region != actual.FsConfig.S3Config.Region {
-		return errors.New("S3 region mismatch")
-	}
-	if expected.FsConfig.S3Config.AccessKey != actual.FsConfig.S3Config.AccessKey {
-		return errors.New("S3 access key mismatch")
-	}
-	if err := checkEncryptedSecret(expected.FsConfig.S3Config.AccessSecret, actual.FsConfig.S3Config.AccessSecret); err != nil {
-		return fmt.Errorf("S3 access secret mismatch: %v", err)
-	}
-	if expected.FsConfig.S3Config.Endpoint != actual.FsConfig.S3Config.Endpoint {
-		return errors.New("S3 endpoint mismatch")
-	}
-	if expected.FsConfig.S3Config.StorageClass != actual.FsConfig.S3Config.StorageClass {
-		return errors.New("S3 storage class mismatch")
-	}
-	if expected.FsConfig.S3Config.UploadPartSize != actual.FsConfig.S3Config.UploadPartSize {
-		return errors.New("S3 upload part size mismatch")
-	}
-	if expected.FsConfig.S3Config.UploadConcurrency != actual.FsConfig.S3Config.UploadConcurrency {
-		return errors.New("S3 upload concurrency mismatch")
-	}
-	if expected.FsConfig.S3Config.KeyPrefix != actual.FsConfig.S3Config.KeyPrefix &&
-		expected.FsConfig.S3Config.KeyPrefix+"/" != actual.FsConfig.S3Config.KeyPrefix {
-		return errors.New("S3 key prefix mismatch")
-	}
-	return nil
-}
-
-func compareGCSConfig(expected *dataprovider.User, actual *dataprovider.User) error {
-	if expected.FsConfig.GCSConfig.Bucket != actual.FsConfig.GCSConfig.Bucket {
-		return errors.New("GCS bucket mismatch")
-	}
-	if expected.FsConfig.GCSConfig.StorageClass != actual.FsConfig.GCSConfig.StorageClass {
-		return errors.New("GCS storage class mismatch")
-	}
-	if expected.FsConfig.GCSConfig.KeyPrefix != actual.FsConfig.GCSConfig.KeyPrefix &&
-		expected.FsConfig.GCSConfig.KeyPrefix+"/" != actual.FsConfig.GCSConfig.KeyPrefix {
-		return errors.New("GCS key prefix mismatch")
-	}
-	if expected.FsConfig.GCSConfig.AutomaticCredentials != actual.FsConfig.GCSConfig.AutomaticCredentials {
-		return errors.New("GCS automatic credentials mismatch")
-	}
-	return nil
-}
-
-func compareAzBlobConfig(expected *dataprovider.User, actual *dataprovider.User) error {
-	if expected.FsConfig.AzBlobConfig.Container != actual.FsConfig.AzBlobConfig.Container {
-		return errors.New("Azure Blob container mismatch")
-	}
-	if expected.FsConfig.AzBlobConfig.AccountName != actual.FsConfig.AzBlobConfig.AccountName {
-		return errors.New("Azure Blob account name mismatch")
-	}
-	if err := checkEncryptedSecret(expected.FsConfig.AzBlobConfig.AccountKey, actual.FsConfig.AzBlobConfig.AccountKey); err != nil {
-		return fmt.Errorf("Azure Blob account key mismatch: %v", err)
-	}
-	if expected.FsConfig.AzBlobConfig.Endpoint != actual.FsConfig.AzBlobConfig.Endpoint {
-		return errors.New("Azure Blob endpoint mismatch")
-	}
-	if expected.FsConfig.AzBlobConfig.SASURL != actual.FsConfig.AzBlobConfig.SASURL {
-		return errors.New("Azure Blob SASL URL mismatch")
-	}
-	if expected.FsConfig.AzBlobConfig.UploadPartSize != actual.FsConfig.AzBlobConfig.UploadPartSize {
-		return errors.New("Azure Blob upload part size mismatch")
-	}
-	if expected.FsConfig.AzBlobConfig.UploadConcurrency != actual.FsConfig.AzBlobConfig.UploadConcurrency {
-		return errors.New("Azure Blob upload concurrency mismatch")
-	}
-	if expected.FsConfig.AzBlobConfig.KeyPrefix != actual.FsConfig.AzBlobConfig.KeyPrefix &&
-		expected.FsConfig.AzBlobConfig.KeyPrefix+"/" != actual.FsConfig.AzBlobConfig.KeyPrefix {
-		return errors.New("Azure Blob key prefix mismatch")
-	}
-	if expected.FsConfig.AzBlobConfig.UseEmulator != actual.FsConfig.AzBlobConfig.UseEmulator {
-		return errors.New("Azure Blob use emulator mismatch")
-	}
-	if expected.FsConfig.AzBlobConfig.AccessTier != actual.FsConfig.AzBlobConfig.AccessTier {
-		return errors.New("Azure Blob access tier mismatch")
-	}
-	return nil
-}
-
-func areSecretEquals(expected, actual *kms.Secret) bool {
-	if expected == nil && actual == nil {
-		return true
-	}
-	if expected != nil && expected.IsEmpty() && actual == nil {
-		return true
-	}
-	if actual != nil && actual.IsEmpty() && expected == nil {
-		return true
-	}
-	return false
-}
-
-func checkEncryptedSecret(expected, actual *kms.Secret) error {
-	if areSecretEquals(expected, actual) {
-		return nil
-	}
-	if expected == nil && actual != nil && !actual.IsEmpty() {
-		return errors.New("secret mismatch")
-	}
-	if actual == nil && expected != nil && !expected.IsEmpty() {
-		return errors.New("secret mismatch")
-	}
-	if expected.IsPlain() && actual.IsEncrypted() {
-		if actual.GetPayload() == "" {
-			return errors.New("invalid secret payload")
-		}
-		if actual.GetAdditionalData() != "" {
-			return errors.New("invalid secret additional data")
-		}
-		if actual.GetKey() != "" {
-			return errors.New("invalid secret key")
-		}
-	} else {
-		if expected.GetStatus() != actual.GetStatus() || expected.GetPayload() != actual.GetPayload() {
-			return errors.New("secret mismatch")
 		}
 	}
 	return nil

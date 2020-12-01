@@ -387,10 +387,6 @@ func (p BoltProvider) dumpUsers() ([]User, error) {
 			if err != nil {
 				return err
 			}
-			err = addCredentialsToUser(&user)
-			if err != nil {
-				return err
-			}
 			users = append(users, user)
 		}
 		return err
@@ -787,7 +783,6 @@ func joinUserAndFolders(u []byte, foldersBucket *bolt.Bucket) (User, error) {
 		}
 		user.VirtualFolders = folders
 	}
-	user.SetEmptySecretsIfNil()
 	return user, err
 }
 
